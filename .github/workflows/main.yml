@@ -21,15 +21,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses-dev lib32z1-dev liblz4-tool libncurses5-dev libncurses6 libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc yasm zip zlib1g-dev python3
 
-      - name: Install Repo
+      - name: Initialize and Sync OrangeFox Source
         run: |
+          # 1. Cài đặt công cụ repo ngay trong cùng một step để tránh mất biến PATH
           mkdir -p ~/.bin
-          PATH="${HOME}/.bin:${PATH}"
           curl https://storage.googleapis.com/git-repo-binutils/repo > ~/.bin/repo
           chmod a+x ~/.bin/repo
+          export PATH="${HOME}/.bin:${PATH}"
 
-      - name: Initialize OrangeFox Manifest
-        run: |
+          # 2. Khởi tạo workspace và sync mã nguồn
           mkdir workspace
           cd workspace
           git config --global user.name "GitHub Actions"
