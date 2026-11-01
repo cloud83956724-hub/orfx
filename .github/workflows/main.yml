@@ -1,67 +1,51 @@
-name: Build OrangeFox Recovery for hero2lte
+name: Build OrangeFox Recovery
 
-on: 
+on:
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-22.04
-
     steps:
-    - name: Check Out Repository
-      uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Maximize build space
-      uses: easimon/maximize-build-space@master
-      with:
-        root-reserve-mb: 5120
-        swap-size-mb: 4096
-        remove-dotnet: 'true'
-        remove-android: 'true'
-        remove-haskell: 'true'
-        remove-codeql: 'true'
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
 
-    - name: Install Build Dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y wget curl git python3 python-is-python3 gperf libncurses5-dev libssl-dev bc bison flex build-essential zip curl zlib1g-dev libstdc++6 libxml2-utils
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses-dev lib32z1-dev liblz4-tool libncurses5-dev libncurses6 libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc yasm zip zlib1g-dev python3
 
-    - name: Install Repo Tool
-      run: |
-        mkdir -p ~/bin
-        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
-        chmod a+x ~/bin/repo
-        sudo ln -sf ~/bin/repo /usr/bin/repo
+      - name: Install Repo
+        run: |
+          mkdir -p ~/.bin
+          PATH="${HOME}/.bin:${PATH}"
+          curl https://storage.googleapis.com/git-repo-binutils/repo > ~/.bin/repo
+          chmod a+x ~/.bin/repo
 
-    - name: Initialize OrangeFox Source
-      run: |
-        mkdir orangefox
-        cd orangefox
-        git config --global user.name "Builder"
-        git config --global user.email "builder@orangefox.org"
-        repo init -u https://gitlab.com/OrangeFox/Manifest.git -b fox_9.0 --depth=1
-        repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune --force-sync -j$(nproc --all)
+      - name: Initialize OrangeFox Manifest
+        run: |
+          mkdir workspace
+          cd workspace
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          repo init -u https://gitlab.com/OrangeFox/manifest.git -b fox_11.0
+          repo sync -j$(nproc --all) --force-sync
 
-    - name: Clone Device Tree and Kernel
-      run: |
-        cd orangefox
-        # Clone device tree hero2lte nhánh fox_9.0
-        git clone https://github.com/OrangeFoxRecovery/device_samsung_hero2lte.git -b fox_9.0 device/samsung/hero2lte
-        
-        # Clone kernel source
-        git clone https://github.com/morogoku/android_kernel_samsung_universal8890.git -b twrp kernel/samsung/universal8890
+      - name: Clone Device Tree
+        run: |
+          cd workspace
+          git clone https://github.com/OrangeFoxRecovery/device_samsung_hero2lte.git device/samsung/hero2lte -b fox_11.0
 
-    - name: Start Building OrangeFox
-      run: |
-        cd orangefox
-        source build/envsetup.sh
-        export FOX_USE_TWRP_RECOVERY_IMAGE_BUILDER=1
-        export LC_ALL=C
-        lunch omni_hero2lte-eng
-        mka recoveryimage
-
-    - name: Upload Recovery Image Artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: OrangeFox-hero2lte-img
-        path: orangefox/out/target/product/hero2lte/recovery.img
+      - name: Start Building
+        run: |
+          cd workspace
+          export ALLOW_MISSING_DEPENDENCIES=true
+          source build/envsetup.sh
+          lunch omni_hero2lte-eng
+          mka recoveryimage
